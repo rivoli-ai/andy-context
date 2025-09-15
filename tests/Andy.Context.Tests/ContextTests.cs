@@ -1,6 +1,6 @@
-using Andy.Engine.Context;
+using Andy.Context;
 
-namespace Andy.Engine.Tests.Context;
+namespace Andy.Tests.Context;
 
 public class ContextTests
 {

@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Andy.Context.Engine\Andy.Context.csproj" />
     <ProjectReference Include="..\..\src\Andy.Context\Andy.Context.csproj" />
   </ItemGroup>
 
