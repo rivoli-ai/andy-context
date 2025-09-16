@@ -102,15 +102,11 @@ public class ConversationContext
             message.Parts.Add(new TextPart { Text = content });
         }
 
-        // Add tool calls
+        // Add tool calls as text parts for now (simplified approach)
         foreach (var functionCall in functionCalls)
         {
-            message.Parts.Add(new ToolCallPart
-            {
-                ToolName = functionCall.Name,
-                CallId = functionCall.Id,
-                Arguments = functionCall.Arguments
-            });
+            var toolCallText = $"Tool Call: {functionCall.Name} (ID: {functionCall.Id})";
+            message.Parts.Add(new TextPart { Text = toolCallText });
         }
 
         _messages.Add(message);
@@ -128,12 +124,7 @@ public class ConversationContext
             Role = MessageRole.Tool,
             Parts = new List<MessagePart>
             {
-                new ToolResponsePart
-                {
-                    ToolName = toolName,
-                    CallId = callId,
-                    Response = response
-                }
+                new TextPart { Text = $"Tool Response: {toolName} (ID: {callId}) - {response}" }
             }
         };
 
@@ -205,5 +196,21 @@ public class ConversationContext
         }
 
         return string.Join("\n", lines);
+    }
+
+    /// <summary>
+    /// Get tools in OpenAI function calling format
+    /// </summary>
+    public List<object> GetToolsInOpenAIFormat()
+    {
+        return AvailableTools.Select(tool => tool.ToOpenAIFunctionFormat()).ToList();
+    }
+
+    /// <summary>
+    /// Get tools in Anthropic tool format
+    /// </summary>
+    public List<object> GetToolsInAnthropicFormat()
+    {
+        return AvailableTools.Select(tool => tool.ToAnthropicToolFormat()).ToList();
     }
 }

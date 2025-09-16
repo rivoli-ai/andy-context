@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Andy.Context.Engine\Andy.Context.csproj" />
+    <ProjectReference Include="..\..\examples\Andy.Context.Examples\Andy.Context.Examples.csproj" />
     <ProjectReference Include="..\..\src\Andy.Context\Andy.Context.csproj" />
   </ItemGroup>
 

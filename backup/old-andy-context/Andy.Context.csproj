@@ -6,11 +6,8 @@
     <Nullable>enable</Nullable>
     <PackageId>andy-context</PackageId>
     <Title>Andy Context</Title>
-    <Description>Andy.Context — LLM-agnostic conversation framework for AI assistants.</Description>
+    <Description>Andy.Context — context management components for Andy.</Description>
     <PackageIcon>andy_context_icon.png</PackageIcon>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageTags>ai;llm;conversation;context;tools</PackageTags>
-    <RepositoryUrl>https://github.com/your-org/andy-context</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>
