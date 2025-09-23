@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>andy-context</PackageId>
+    <PackageId>Andy.Context</PackageId>
     <Title>Andy Context</Title>
     <Description>Andy.Context — LLM-agnostic conversation framework for AI assistants.</Description>
     <PackageIcon>andy_context_icon.png</PackageIcon>
