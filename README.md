@@ -15,8 +15,9 @@ A modern, LLM-agnostic conversation framework for building AI assistants with to
 ## Quick Start
 
 ```csharp
-using Andy.Context.Core;
-using Andy.Context.Examples;
+using Andy.Context.Model;
+using Andy.Context.Tooling;
+using Andy.Context.Orchestration;
 
 // 1. Create conversation and tools
 var conversation = new Conversation();
@@ -36,7 +37,7 @@ Console.WriteLine(response.Content); // "The result is 4"
 
 ### Core Components
 
-- **`ChatMessage`**: Unified message format with tool calls/results
+- **`Message`**: Unified message format with tool calls/results
 - **`Conversation`**: Conversation state management with caching
 - **`Turn`**: Groups related messages (user → assistant → tools → assistant)
 - **`ToolRegistry`**: Centralized tool management
@@ -57,11 +58,19 @@ User Message → LLM → Tool Calls → Tool Execution → Tool Results → LLM 
 ```csharp
 public class MyTool : ITool
 {
-    public ToolDefinition Definition { get; } = new()
+    public ToolDeclaration Definition { get; } = new()
     {
         Name = "my_tool",
         Description = "Does something useful",
-        ParameterSchema = """{"type":"object","properties":{"param":{"type":"string"}},"required":["param"]}"""
+        Parameters = new Dictionary<string, object>
+        {
+            ["type"] = "object",
+            ["properties"] = new Dictionary<string, object>
+            {
+                ["param"] = new Dictionary<string, object> { ["type"] = "string" }
+            },
+            ["required"] = new[] { "param" }
+        }
     };
 
     public async Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
@@ -123,8 +132,8 @@ var context = contextManager.Build(options);
 public class OpenAIClient : ILlmClient
 {
     public async Task<LlmResponse> ChatAsync(
-        IReadOnlyList<ChatMessage> context,
-        IReadOnlyList<ToolDefinition> declaredTools,
+        IReadOnlyList<Message> context,
+        IReadOnlyList<ToolDeclaration> declaredTools,
         CancellationToken ct = default)
     {
         // Convert to OpenAI format
@@ -138,7 +147,7 @@ public class OpenAIClient : ILlmClient
         return ConvertFromOpenAIFormat(response);
     }
 
-    public async IAsyncEnumerable<ChatMessage> ChatStreamAsync(/* ... */)
+    public async IAsyncEnumerable<Message> ChatStreamAsync(/* ... */)
     {
         // Implement streaming
     }
