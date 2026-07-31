@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 // LLM-Agnostic Conversation Framework in C# (No external dependencies)
-// Target: .NET 8+ (uses only BCL)
+// Target: .NET 10+ (uses only BCL)
 
 namespace Andy.Context.Model;
 

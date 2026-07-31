@@ -9,7 +9,7 @@ A modern, LLM-agnostic conversation framework for building AI assistants with to
 - **Context Management**: Smart compression and token budgeting
 - **Streaming**: Real-time response streaming
 - **Turn-Based**: Logical conversation structure
-- **No External Dependencies**: Pure .NET 8+ BCL implementation
+- **No External Dependencies**: Pure .NET 10+ BCL implementation
 - **Type-Safe**: Strong typing with proper error handling
 
 ## Quick Start
