@@ -144,7 +144,7 @@ Usage-only chunks are skipped. A non-null Error throws, and a stream without a m
 
 See [development instructions](docs/development.md), [usage examples](examples/Andy.Context.UsageExamples/README.md), and [the remediation plan](docs/remediation-plan.md).
 
-The September 2026 review fixes are implemented locally in P1-first order: 166 tests pass and library line coverage is 95.5%. GitHub issues #4–#15 track acceptance and integration. Tests exercise restored data, outgoing requests, multi-round tools, cancellation, fragmented streams, schema rejection and context limits. They use mock providers; live provider interoperability is not certified.
+The September 2026 review fixes are implemented in P1-first order: 166 tests pass and library line coverage is 95.5%. GitHub issues #4–#15 track acceptance and integration. Tests exercise restored data, outgoing requests, multi-round tools, cancellation, fragmented streams, schema rejection and context limits. They use mock providers; live provider interoperability is not certified.
 
 Semantic summarization, provider adapters, durable storage and performance benchmarks remain future work. Basic statistics and summaries are available through Andy.Context.Utils.
 

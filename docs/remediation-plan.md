@@ -1,6 +1,6 @@
 # Review remediation plan
 
-Implementation is on a dedicated coordination worktree. GitHub issues remain open until integration verification.
+P1 and P2 implementation is complete. Integration uses a dedicated coordination worktree; GitHub issues close only after verification of merged main.
 
 ## P1 — complete before P2
 
@@ -43,3 +43,7 @@ Validation:
 - git diff --check
 
 These are local implementation milestones, not integration closure. No branch was pushed or merged and no issue was closed. Integration must verify the committed branch. Provider interoperability, full JSON Schema, semantic compression, automatic retries and benchmarking remain explicit limitations rather than claimed features.
+
+## 2026-09-08 — Integration
+
+User authorized merge. The integration branch includes P1 commit 8e97985 and P2 commit cb992f8 on the current main baseline. All 166 tests pass in a fresh worktree. GitHub issues #4–#15 will carry the merged commit and verification evidence when integration completes.
