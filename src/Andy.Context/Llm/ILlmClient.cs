@@ -5,7 +5,7 @@ namespace Andy.Context.Llm;
 
 /// <summary>
 /// Vendor-agnostic interface for chat completions.
-/// The vendor adapter is responsible for translating our neutral ChatMessage
+/// The vendor adapter is responsible for translating our neutral Message
 /// list + tool declarations into the specific wire format (OpenAI, Azure, etc.).
 /// </summary>
 public interface ILlmClient

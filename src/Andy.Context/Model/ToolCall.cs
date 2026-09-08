@@ -15,6 +15,7 @@ public sealed class ToolCall
 
     public JsonElement ArgumentsAsJsonElement()
     {
-        return JsonDocument.Parse(string.IsNullOrWhiteSpace(ArgumentsJson) ? "{}" : ArgumentsJson).RootElement.Clone();
+        using var document = JsonDocument.Parse(string.IsNullOrWhiteSpace(ArgumentsJson) ? "{}" : ArgumentsJson);
+        return document.RootElement.Clone();
     }
 }

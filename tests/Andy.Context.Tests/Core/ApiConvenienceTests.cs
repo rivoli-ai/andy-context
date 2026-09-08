@@ -201,7 +201,7 @@ public class ApiConvenienceTests
     }
 
     [Fact]
-    public void ParallelToolCalls_ShouldBeSupported()
+    public void CallerManagedParallelResults_CanBeStored()
     {
         // Arrange
         var message = new Message

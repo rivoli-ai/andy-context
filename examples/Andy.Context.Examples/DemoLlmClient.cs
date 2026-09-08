@@ -21,7 +21,7 @@ public sealed class DemoLlmClient : ILlmClient
         var lastUser = context.LastOrDefault(m => m.Role == Role.User)?.Content ?? string.Empty;
 
         // If we see tool messages with results, produce a final answer that references them.
-        var lastTool = context.LastOrDefault(m => m.Role == Role.Tool);
+        var lastTool = context.LastOrDefault() is { Role: Role.Tool } toolMessage ? toolMessage : null;
         if (lastTool != null)
         {
             var reply = new Message

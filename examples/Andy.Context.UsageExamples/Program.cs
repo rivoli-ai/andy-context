@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Andy.Context.Model;
 using Andy.Context.Context;
 using Andy.Context.Tooling;
@@ -16,6 +16,11 @@ class Program
 {
     static async Task Main(string[] args)
     {
+        if (args.Contains("--demo"))
+        {
+            await global::Examples.DemoProgram.Main();
+            return;
+        }
         Console.WriteLine("=== Andy.Context Library Usage Examples ===\n");
 
         // Run examples in order
@@ -180,7 +185,8 @@ class Program
         var deserialized = ConversationExtensions.FromJson(json);
 
         Console.WriteLine($"Original conversation ID: {conversation.Id}");
-        Console.WriteLine($"Deserialized conversation ID: {deserialized?.Id}");
+        Console.WriteLine($"Deserialized conversation ID: {deserialized.Id}");
+        Console.WriteLine($"Restored turns: {deserialized.Turns.Count}");
         Console.WriteLine($"JSON size: {json.Length} characters");
         Console.WriteLine();
     }
