@@ -16,7 +16,7 @@ public static class ConversationExtensions
     public static ConversationStats GetStats(this Conversation conversation)
     {
         var messages = conversation.GetCachedMessages();
-        
+
         return new ConversationStats
         {
             TotalTurns = conversation.Turns.Count,
@@ -40,20 +40,20 @@ public static class ConversationExtensions
     {
         var messages = conversation.GetCachedMessages();
         var summary = new System.Text.StringBuilder();
-        
+
         foreach (var message in messages.TakeLast(10)) // Last 10 messages
         {
             var role = message.Role.ToString().ToLower();
-            var content = message.Content.Length > 100 
-                ? message.Content.Substring(0, 100) + "..." 
+            var content = message.Content.Length > 100
+                ? message.Content.Substring(0, 100) + "..."
                 : message.Content;
-            
+
             summary.AppendLine($"{role}: {content}");
         }
-        
+
         var result = summary.ToString();
-        return result.Length > maxLength 
-            ? result.Substring(0, maxLength) + "..." 
+        return result.Length > maxLength
+            ? result.Substring(0, maxLength) + "..."
             : result;
     }
 
@@ -70,7 +70,7 @@ public static class ConversationExtensions
     /// </summary>
     public static Conversation FromJson(string json)
     {
-        return JsonSerializer.Deserialize<Conversation>(json, JsonOptions.Default) 
+        return JsonSerializer.Deserialize<Conversation>(json, JsonOptions.Default)
                ?? throw new InvalidOperationException("Failed to deserialize conversation");
     }
 }

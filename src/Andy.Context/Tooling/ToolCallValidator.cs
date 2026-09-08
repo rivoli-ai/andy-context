@@ -11,12 +11,12 @@ public static class ToolCallValidator
     public static ValidationResult Validate(ToolCall call, ToolDeclaration definition)
     {
         var result = new ValidationResult { IsValid = true };
-        
+
         try
         {
             // Basic validation - check if arguments can be parsed
             var args = call.ArgumentsAsJsonElement();
-            
+
             // TODO: Add full JSON Schema validation when needed
             // For now, just ensure it's valid JSON
             if (string.IsNullOrWhiteSpace(call.ArgumentsJson))
@@ -30,7 +30,7 @@ public static class ToolCallValidator
             result.Errors.Add($"Invalid JSON arguments: {ex.Message}");
             result.IsValid = false;
         }
-        
+
         return result;
     }
 }

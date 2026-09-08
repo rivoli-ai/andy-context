@@ -14,8 +14,10 @@ namespace Andy.Context.Examples;
 /// </summary>
 public sealed class DemoLlmClient : ILlmClient
 {
-    public Task<LlmResponse> ChatAsync(IReadOnlyList<Message> context, IReadOnlyList<ToolDeclaration> declaredTools, CancellationToken ct = default)
+    public Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken = default)
     {
+        var context = request.Messages;
+        var declaredTools = request.Tools;
         var lastUser = context.LastOrDefault(m => m.Role == Role.User)?.Content ?? string.Empty;
 
         // If we see tool messages with results, produce a final answer that references them.
@@ -58,11 +60,16 @@ public sealed class DemoLlmClient : ILlmClient
         }
     }
 
-    public async IAsyncEnumerable<Message> ChatStreamAsync(IReadOnlyList<Message> context, IReadOnlyList<ToolDeclaration> declaredTools, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken ct = default)
+    public async IAsyncEnumerable<LlmStreamResponse> StreamCompleteAsync(LlmRequest request, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // For demo purposes, just yield the non-streaming response
-        var response = await ChatAsync(context, declaredTools, ct);
-        yield return response.AssistantMessage;
+        var response = await CompleteAsync(request, cancellationToken);
+        yield return new LlmStreamResponse
+        {
+            Delta = response.AssistantMessage,
+            IsComplete = true,
+            Usage = response.Usage
+        };
     }
 
     private static string Truncate(string s, int max)

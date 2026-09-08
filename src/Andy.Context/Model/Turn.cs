@@ -11,10 +11,14 @@ public sealed class Turn
     public Message? AssistantMessage { get; set; } // may be null until produced
     public List<Message> ToolMessages { get; init; } = new(); // each with Role=Tool
 
+    /// <summary>Messages after the first batch of tool results, in arrival order.</summary>
+    public List<Message> ContinuationMessages { get; init; } = new();
+
     public IEnumerable<Message> EnumerateMessages()
     {
         yield return UserOrSystemMessage;
         if (AssistantMessage != null) yield return AssistantMessage;
         foreach (var t in ToolMessages) yield return t;
+        foreach (var message in ContinuationMessages) yield return message;
     }
 }

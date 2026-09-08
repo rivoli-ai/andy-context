@@ -45,7 +45,7 @@ public class OrchestrationTests
         Assert.Equal(Role.Assistant, response.Role);
         Assert.Contains("Tool result received", response.Content);
         Assert.Single(conversation.Turns);
-        
+
         var turn = conversation.Turns[0];
         Assert.NotNull(turn.AssistantMessage);
         Assert.Single(turn.ToolMessages);
@@ -68,7 +68,7 @@ public class OrchestrationTests
         // Assert
         Assert.Equal(Role.Assistant, response.Role);
         Assert.Contains("Tool result received", response.Content);
-        
+
         var turn = conversation.Turns[0];
         Assert.Single(turn.ToolMessages);
         var toolMessage = turn.ToolMessages[0];
@@ -83,7 +83,7 @@ public class OrchestrationTests
         var tools = new ToolRegistry();
         var llm = new DemoLlmClient();
         var orchestrator = new AssistantOrchestrator(conversation, tools, llm);
-        
+
         var options = new ContextBuildOptions
         {
             TokenBudget = 1000,

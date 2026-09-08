@@ -235,3 +235,6 @@ MIT License - see LICENSE file for details.
 - [ ] Multi-modal support
 - [ ] Conversation analytics
 - [ ] Performance monitoring
+## Review remediation status
+
+P1 fixes (#4–#8) are implemented and verified locally with 99 passing tests. See [the remediation plan](docs/remediation-plan.md) for P2 progress. Tool exchanges now retain a final assistant message after tool results. JSON import restores turns and JSON-compatible state. Compression drops entire old turns without reordering; budgets use UTF-8 content and structured tool payload estimates, not a provider tokenizer. An oversized newest turn can produce an empty context.

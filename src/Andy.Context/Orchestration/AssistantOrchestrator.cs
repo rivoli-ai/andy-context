@@ -39,7 +39,8 @@ public sealed class AssistantOrchestrator
         // 2) Build context and call LLM.
         var ctx = _contextManager.Build(options);
         var decl = _tools.GetDeclaredTools();
-        var first = await _llm.ChatAsync(ctx, decl, ct);
+        var request = new LlmRequest { Messages = ctx, Tools = decl };
+        var first = await _llm.CompleteAsync(request, ct);
         turn.AssistantMessage = first.AssistantMessage;
         _conversation.InvalidateCache(); // Invalidate cache after adding assistant message
 
@@ -55,16 +56,16 @@ public sealed class AssistantOrchestrator
                     var validation = ToolCallValidator.Validate(call, toolDef);
                     if (!validation.IsValid)
                     {
-                        var validationError = ToolResult.FromObject(call.Id, call.Name, 
+                        var validationError = ToolResult.FromObject(call.Id, call.Name,
                             new { error = "validation_failed", details = validation.Errors }, isError: true);
                         var toolMsg = new Message
                         {
                             Role = Role.Tool,
                             Content = validationError.ResultJson,
                             ToolResults = new List<ToolResult> { validationError },
-                            Metadata = new Dictionary<string, object> 
-                            { 
-                                ["tool_name"] = call.Name, 
+                            Metadata = new Dictionary<string, object>
+                            {
+                                ["tool_name"] = call.Name,
                                 ["tool_call_id"] = call.Id,
                                 ["validation_error"] = true
                             }
@@ -83,23 +84,23 @@ public sealed class AssistantOrchestrator
                     }
                     catch (ToolExecutionException ex)
                     {
-                        result = ToolResult.FromObject(call.Id, call.Name, 
+                        result = ToolResult.FromObject(call.Id, call.Name,
                             new { error = ex.Message, tool_name = ex.ToolName, call_id = ex.CallId }, isError: true);
                     }
                     catch (Exception ex)
                     {
-                        result = ToolResult.FromObject(call.Id, call.Name, 
+                        result = ToolResult.FromObject(call.Id, call.Name,
                             new { error = ex.Message, type = ex.GetType().Name }, isError: true);
                     }
-                    
+
                     var toolMsg = new Message
                     {
                         Role = Role.Tool,
                         Content = result.ResultJson, // LLMs typically expect raw JSON string here
                         ToolResults = new List<ToolResult> { result },
-                        Metadata = new Dictionary<string, object> 
-                        { 
-                            ["tool_name"] = call.Name, 
+                        Metadata = new Dictionary<string, object>
+                        {
+                            ["tool_name"] = call.Name,
                             ["tool_call_id"] = call.Id,
                             ["is_error"] = result.IsError
                         }
@@ -108,16 +109,16 @@ public sealed class AssistantOrchestrator
                 }
                 else
                 {
-                    var notFound = ToolResult.FromObject(call.Id, call.Name, 
+                    var notFound = ToolResult.FromObject(call.Id, call.Name,
                         new { error = "tool_not_found", available_tools = _tools.GetRegisteredToolNames() }, isError: true);
-                    var toolMsg = new Message 
-                    { 
-                        Role = Role.Tool, 
-                        Content = notFound.ResultJson, 
+                    var toolMsg = new Message
+                    {
+                        Role = Role.Tool,
+                        Content = notFound.ResultJson,
                         ToolResults = new List<ToolResult> { notFound },
-                        Metadata = new Dictionary<string, object> 
-                        { 
-                            ["tool_name"] = call.Name, 
+                        Metadata = new Dictionary<string, object>
+                        {
+                            ["tool_name"] = call.Name,
                             ["tool_call_id"] = call.Id,
                             ["tool_not_found"] = true
                         }
@@ -129,18 +130,11 @@ public sealed class AssistantOrchestrator
             // 4) After tools, rebuild context and get final assistant response.
             _conversation.InvalidateCache(); // Invalidate cache since we modified the turn
             var ctx2 = _contextManager.Build(options);
-            var second = await _llm.ChatAsync(ctx2, decl, ct);
-            // Update the assistant message content but preserve the tool calls from the first response
-            turn.AssistantMessage = new Message
-            {
-                Role = Role.Assistant,
-                Content = second.AssistantMessage.Content,
-                ToolCalls = first.AssistantMessage.ToolCalls, // Preserve the original tool calls
-                Metadata = second.AssistantMessage.Metadata,
-                Timestamp = second.AssistantMessage.Timestamp,
-                Id = second.AssistantMessage.Id,
-                ParentMessageId = second.AssistantMessage.ParentMessageId
-            };
+            var request2 = new LlmRequest { Messages = ctx2, Tools = decl };
+            var second = await _llm.CompleteAsync(request2, ct);
+            turn.ContinuationMessages.Add(second.AssistantMessage);
+            _conversation.InvalidateCache();
+            return second.AssistantMessage;
         }
 
         return turn.AssistantMessage!;
@@ -163,20 +157,32 @@ public sealed class AssistantOrchestrator
         // 2) Build context and stream LLM response.
         var ctx = _contextManager.Build(options);
         var decl = _tools.GetDeclaredTools();
-        
+
+        var content = new System.Text.StringBuilder();
         var hasToolCalls = false;
         var toolCalls = new List<ToolCall>();
-        
-        await foreach (var message in _llm.ChatStreamAsync(ctx, decl, ct))
+
+        var request = new LlmRequest { Messages = ctx, Tools = decl };
+        await foreach (var response in _llm.StreamCompleteAsync(request, ct))
         {
-            if (message.ToolCalls.Any())
+            var message = response.Delta;
+            if (message?.ToolCalls.Any() == true)
             {
                 hasToolCalls = true;
                 toolCalls.AddRange(message.ToolCalls);
             }
-            
+
+            if (message != null) content.Append(message.Content);
             yield return message;
         }
+
+        turn.AssistantMessage = new Message
+        {
+            Role = Role.Assistant,
+            Content = content.ToString(),
+            ToolCalls = toolCalls
+        };
+        _conversation.InvalidateCache();
 
         // 3) If tool calls present, execute them and stream final response.
         if (hasToolCalls && toolCalls.Any())
@@ -193,18 +199,18 @@ public sealed class AssistantOrchestrator
                     }
                     catch (Exception ex)
                     {
-                        result = ToolResult.FromObject(call.Id, call.Name, 
+                        result = ToolResult.FromObject(call.Id, call.Name,
                             new { error = ex.Message }, isError: true);
                     }
-                    
+
                     var toolMsg = new Message
                     {
                         Role = Role.Tool,
                         Content = result.ResultJson,
                         ToolResults = new List<ToolResult> { result },
-                        Metadata = new Dictionary<string, object> 
-                        { 
-                            ["tool_name"] = call.Name, 
+                        Metadata = new Dictionary<string, object>
+                        {
+                            ["tool_name"] = call.Name,
                             ["tool_call_id"] = call.Id
                         }
                     };
@@ -213,11 +219,20 @@ public sealed class AssistantOrchestrator
             }
 
             // Stream final response after tool execution
+            _conversation.InvalidateCache();
+            content.Clear();
             var ctx2 = _contextManager.Build(options);
-            await foreach (var message in _llm.ChatStreamAsync(ctx2, decl, ct))
+            var request2 = new LlmRequest { Messages = ctx2, Tools = decl };
+            await foreach (var response in _llm.StreamCompleteAsync(request2, ct))
             {
-                yield return message;
+                if (response.Delta != null)
+                {
+                    content.Append(response.Delta.Content);
+                    yield return response.Delta;
+                }
             }
+            turn.ContinuationMessages.Add(new Message { Role = Role.Assistant, Content = content.ToString() });
+            _conversation.InvalidateCache();
         }
     }
 }

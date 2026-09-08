@@ -43,7 +43,8 @@ public class ToolCallingTests
         };
 
         // Act
-        var response = await llm.ChatAsync(messages, tools);
+        var request = new LlmRequest { Messages = messages, Tools = tools };
+        var response = await llm.CompleteAsync(request);
 
         // Assert
         Assert.NotNull(response);

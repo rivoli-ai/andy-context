@@ -17,10 +17,10 @@ public class ContextManagementTests
             new() { Role = Role.Assistant, Content = "Short response" }, // 14 chars
             new() { Role = Role.User, Content = "Another long message that exceeds the token budget" } // 50 chars 
         };
-        
+
         var options = new ContextBuildOptions
         {
-            TokenBudget = 15, // Very small budget -- 132 / 4 = 33 tokens approx for all messages 
+            TokenBudget = 25, // Fits the last two messages, including framing.
             MaxRecentMessages = 10
         };
 
@@ -45,7 +45,7 @@ public class ContextManagementTests
             new() { Role = Role.Tool, Content = "Tool message" },
             new() { Role = Role.Assistant, Content = "Assistant message" }
         };
-        
+
         var options = new ContextBuildOptions
         {
             IncludeSystemMessages = false,
@@ -73,7 +73,7 @@ public class ContextManagementTests
             new() { Role = Role.Tool, Content = "4", ToolResults = new List<ToolResult> { new() { CallId = "call_1", Name = "calculator" } } },
             new() { Role = Role.Assistant, Content = "The result is 4" }
         };
-        
+
         var options = new ContextBuildOptions
         {
             TokenBudget = 100,
@@ -85,8 +85,8 @@ public class ContextManagementTests
 
         // Assert
         // Should preserve the tool call/result pair
-        Assert.True(compressed.Any(m => m.ToolCalls.Any()));
-        Assert.True(compressed.Any(m => m.ToolResults.Any()));
+        Assert.Contains(compressed, m => m.ToolCalls.Any());
+        Assert.Contains(compressed, m => m.ToolResults.Any());
     }
 
     [Fact]

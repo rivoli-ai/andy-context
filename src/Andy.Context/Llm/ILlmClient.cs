@@ -10,14 +10,17 @@ namespace Andy.Context.Llm;
 /// </summary>
 public interface ILlmClient
 {
-    Task<LlmResponse> ChatAsync(
-        IReadOnlyList<Message> context,
-        IReadOnlyList<ToolDeclaration> declaredTools,
-        CancellationToken ct = default);
-    
-    // Streaming support
-    IAsyncEnumerable<Message> ChatStreamAsync(
-        IReadOnlyList<Message> context,
-        IReadOnlyList<ToolDeclaration> declaredTools,
-        CancellationToken ct = default);
+    /// <summary>
+    /// Completes a chat request and returns the full response
+    /// </summary>
+    Task<LlmResponse> CompleteAsync(
+        LlmRequest request,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Completes a chat request and returns a stream of response chunks
+    /// </summary>
+    IAsyncEnumerable<LlmStreamResponse> StreamCompleteAsync(
+        LlmRequest request,
+        CancellationToken cancellationToken = default);
 }

@@ -164,7 +164,7 @@ public class ContextManagerEdgeCasesTests
 
         var options = new ContextBuildOptions
         {
-            TokenBudget = 20, // Small budget
+            TokenBudget = 200, // Enough for the complete structured tool exchange
             PreserveToolCallPairs = true
         };
 
@@ -247,7 +247,7 @@ public class ContextManagerEdgeCasesTests
 
         var options = new ContextBuildOptions
         {
-            TokenBudget = 4 // Exactly enough for both messages
+            TokenBudget = 12 // Content plus four framing units per message
         };
 
         // Act

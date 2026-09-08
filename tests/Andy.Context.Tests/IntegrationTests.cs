@@ -23,17 +23,17 @@ public class IntegrationTests
         // Add system prompt
         conversation.AddTurn(new Turn
         {
-            UserOrSystemMessage = new Message 
-            { 
-                Role = Role.System, 
-                Content = "You are a helpful assistant." 
+            UserOrSystemMessage = new Message
+            {
+                Role = Role.System,
+                Content = "You are a helpful assistant."
             }
         });
 
-        var options = new ContextBuildOptions 
-        { 
-            TokenBudget = 1000, 
-            MaxRecentMessages = 10 
+        var options = new ContextBuildOptions
+        {
+            TokenBudget = 1000,
+            MaxRecentMessages = 10
         };
 
         // Act - Run multiple turns
@@ -84,22 +84,22 @@ public class IntegrationTests
         // Arrange
         var conversation = new Conversation();
         var compressor = new SmartCompressor();
-        
+
         // Add a turn with tool calls
         conversation.AddTurn(new Turn
         {
             UserOrSystemMessage = new Message { Role = Role.User, Content = "Calculate 2+2" },
-            AssistantMessage = new Message 
-            { 
-                Role = Role.Assistant, 
+            AssistantMessage = new Message
+            {
+                Role = Role.Assistant,
                 Content = "I'll calculate that",
                 ToolCalls = new List<ToolCall> { new() { Id = "call_1", Name = "calculator" } }
             },
             ToolMessages = new List<Message>
             {
-                new() 
-                { 
-                    Role = Role.Tool, 
+                new()
+                {
+                    Role = Role.Tool,
                     Content = "4",
                     ToolResults = new List<ToolResult> { new() { CallId = "call_1", Name = "calculator" } }
                 }
@@ -117,8 +117,8 @@ public class IntegrationTests
         var compressed = compressor.Compress(messages, options);
 
         // Assert
-        Assert.True(compressed.Any(m => m.ToolCalls.Any()));
-        Assert.True(compressed.Any(m => m.ToolResults.Any()));
+        Assert.Contains(compressed, m => m.ToolCalls.Any());
+        Assert.Contains(compressed, m => m.ToolResults.Any());
     }
 
     [Fact]

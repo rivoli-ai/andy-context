@@ -29,12 +29,12 @@ public sealed class SimpleCompressor : IContextCompressor
             filtered = filtered.Skip(filtered.Count - options.MaxRecentMessages).ToList();
 
         // Enforce token budget by dropping older messages entirely.
-        int total = filtered.Sum(m => EstimateTokens(m.Content));
+        long total = filtered.Sum(m => (long)TokenEstimator.Estimate(m));
         while (total > options.TokenBudget && filtered.Count > 0)
         {
             // Remove the oldest message
             filtered.RemoveAt(0);
-            total = filtered.Sum(m => EstimateTokens(m.Content));
+            total = filtered.Sum(m => (long)TokenEstimator.Estimate(m));
         }
         return filtered;
     }
