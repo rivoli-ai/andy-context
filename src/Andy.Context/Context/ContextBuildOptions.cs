@@ -12,4 +12,13 @@ public sealed class ContextBuildOptions
     public TimeSpan MaxConversationAge { get; init; } = TimeSpan.FromHours(24);
     public bool PreserveToolCallPairs { get; init; } = true;
     public CompressionStrategy CompressionStrategy { get; init; } = CompressionStrategy.Smart;
+    internal void Validate()
+    {
+        if (TokenBudget < 0) throw new ArgumentOutOfRangeException(nameof(TokenBudget));
+        if (MaxRecentMessages < 0) throw new ArgumentOutOfRangeException(nameof(MaxRecentMessages));
+        if (MaxConversationAge < TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(MaxConversationAge));
+        if (!Enum.IsDefined(CompressionStrategy)) throw new ArgumentOutOfRangeException(nameof(CompressionStrategy));
+        if (CompressionStrategy == CompressionStrategy.Semantic)
+            throw new NotSupportedException("Semantic compression is not implemented.");
+    }
 }

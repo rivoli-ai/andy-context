@@ -45,7 +45,7 @@ public class OrchestrationTests
         Assert.Equal(Role.Assistant, response.Role);
         Assert.Contains("Tool result received", response.Content);
         Assert.Single(conversation.Turns);
-        
+
         var turn = conversation.Turns[0];
         Assert.NotNull(turn.AssistantMessage);
         Assert.Single(turn.ToolMessages);
@@ -68,7 +68,7 @@ public class OrchestrationTests
         // Assert
         Assert.Equal(Role.Assistant, response.Role);
         Assert.Contains("Tool result received", response.Content);
-        
+
         var turn = conversation.Turns[0];
         Assert.Single(turn.ToolMessages);
         var toolMessage = turn.ToolMessages[0];
@@ -81,23 +81,18 @@ public class OrchestrationTests
         // Arrange
         var conversation = new Conversation();
         var tools = new ToolRegistry();
-        var llm = new DemoLlmClient();
+        var llm = new ReviewRegressionTests.RecordingClient(
+            new Message { Role = Role.Assistant, Content = "Hello!" });
         var orchestrator = new AssistantOrchestrator(conversation, tools, llm);
-        
+        conversation.AddTurn(new Turn { UserOrSystemMessage = new Message { Role = Role.System, Content = "exclude" } });
         var options = new ContextBuildOptions
         {
             TokenBudget = 1000,
             MaxRecentMessages = 5,
-            IncludeToolMessages = false
+            IncludeSystemMessages = false
         };
-
-        // Act
-        var response = await orchestrator.RunTurnAsync("Hello!", options);
-
-        // Assert
-        Assert.Equal(Role.Assistant, response.Role);
-        // Options are passed to context manager, but we can't easily test compression
-        // without more complex scenarios
+        await orchestrator.RunTurnAsync("Hello!", options);
+        Assert.Equal("Hello!", Assert.Single(llm.Requests[0].Messages).Content);
     }
 
     [Fact]
@@ -120,5 +115,6 @@ public class OrchestrationTests
         Assert.Single(messages);
         Assert.Equal(Role.Assistant, messages[0].Role);
         Assert.Contains("Hello!", messages[0].Content);
+        Assert.Equal(messages[0].Content, conversation.Turns[0].AssistantMessage!.Content);
     }
 }

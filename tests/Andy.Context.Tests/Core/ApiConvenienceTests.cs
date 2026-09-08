@@ -97,8 +97,8 @@ public class ApiConvenienceTests
         Assert.True(context.Count < 100);
 
         // Estimate total tokens (roughly 4 chars per token)
-        var estimatedTokens = context.Sum(m => m.Content.Length / 4);
-        Assert.True(estimatedTokens <= options.TokenBudget * 2); // Allow some variance
+        var estimatedTokens = context.Sum(TokenEstimator.Estimate);
+        Assert.True(estimatedTokens <= options.TokenBudget);
     }
 
     [Fact]
@@ -201,7 +201,7 @@ public class ApiConvenienceTests
     }
 
     [Fact]
-    public void ParallelToolCalls_ShouldBeSupported()
+    public void CallerManagedParallelResults_CanBeStored()
     {
         // Arrange
         var message = new Message

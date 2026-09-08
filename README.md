@@ -1,237 +1,151 @@
-# Andy.Context - LLM-Agnostic Conversation Framework
+# Andy.Context
 
-A modern, LLM-agnostic conversation framework for building AI assistants with tool support, context management, and streaming capabilities.
+A .NET 10 library for provider-neutral conversation history, tool execution, context budgeting and streaming. Runtime code uses the .NET BCL; provider adapters are supplied by your application.
 
-## Features
+## Quick start
 
-- **LLM-Agnostic**: Works with any LLM provider (OpenAI, Anthropic, Azure, etc.)
-- **Tool Support**: Declare and execute tools with proper error handling
-- **Context Management**: Smart compression and token budgeting
-- **Streaming**: Real-time response streaming
-- **Turn-Based**: Logical conversation structure
-- **No External Dependencies**: Pure .NET 10+ BCL implementation
-- **Type-Safe**: Strong typing with proper error handling
+Run the mock-provider examples without API credentials:
 
-## Quick Start
+~~~bash
+dotnet run --project examples/Andy.Context.UsageExamples/Andy.Context.UsageExamples.csproj
+~~~
 
-```csharp
+Inside a project referencing the library and example helpers:
+
+~~~csharp
 using Andy.Context.Model;
 using Andy.Context.Tooling;
 using Andy.Context.Orchestration;
+using Andy.Context.Examples;
 
-// 1. Create conversation and tools
 var conversation = new Conversation();
 var tools = new ToolRegistry();
 tools.Register(new CalculatorTool());
+var assistant = new AssistantOrchestrator(conversation, tools, new DemoLlmClient());
+var reply = await assistant.RunTurnAsync("calc");
+Console.WriteLine(reply.Content);
+~~~
 
-// 2. Create LLM client and orchestrator
-var llm = new DemoLlmClient();
-var orchestrator = new AssistantOrchestrator(conversation, tools, llm);
+The mock uses a fixed calculator expression; it does not interpret arbitrary arithmetic requests.
 
-// 3. Run a conversation turn
-var response = await orchestrator.RunTurnAsync("Calculate 2+2");
-Console.WriteLine(response.Content); // "The result is 4"
-```
+## History and persistence
 
-## Architecture
+A turn enumerates its user/system message, first assistant message, first tool-result batch, then **ContinuationMessages** in arrival order. Multiple tool rounds retain:
 
-### Core Components
+~~~text
+User → Assistant(calls) → Tool(results) → Assistant(calls) → Tool(results) → Assistant(answer)
+~~~
 
-- **`Message`**: Unified message format with tool calls/results
-- **`Conversation`**: Conversation state management with caching
-- **`Turn`**: Groups related messages (user → assistant → tools → assistant)
-- **`ToolRegistry`**: Centralized tool management
-- **`ILlmClient`**: Vendor-agnostic LLM interface
-- **`IContextCompressor`**: Smart context compression
-- **`AssistantOrchestrator`**: Orchestrates the conversation flow
+RunTurnAsync returns the final answer without attaching earlier tool calls. Streaming saves each assembled response after its model stream is fully consumed.
 
-### Message Flow
+~~~csharp
+using Andy.Context.Utils;
 
-```
-User Message → LLM → Tool Calls → Tool Execution → Tool Results → LLM → Final Response
-```
+conversation.SetState("preferences", new Dictionary<string, string> { ["theme"] = "dark" });
+var json = conversation.ToJson();
+var restored = ConversationExtensions.FromJson(json);
+var preferences = restored.GetState<Dictionary<string, string>>("preferences");
+~~~
 
-## Tool System
+JSON restores turns, continuations, IDs, timestamps and JSON-compatible state. Runtime object types are not embedded: metadata and untyped state deserialize as JsonElement; request a compatible type with GetState<T>. Cyclic or non-serializable state is unsupported. No disk storage, encryption or persistence migrations are provided.
 
-### Declaring Tools
+Conversation, turn and registry collections are mutable and **not thread-safe**. Use one owner or application synchronization. Overlapping calls on one orchestrator throw; separate orchestrators sharing a conversation still require synchronization. After manually editing an existing turn, call conversation.InvalidateCache(); treat cached lists as read-only.
 
-```csharp
-public class MyTool : ITool
+## Context policies
+
+~~~csharp
+using Andy.Context.Context;
+
+var context = new ContextManager(conversation).Build(new ContextBuildOptions
+{
+    TokenBudget = 4000,
+    MaxRecentMessages = 20,
+    MaxConversationAge = TimeSpan.FromHours(24),
+    IncludeSystemMessages = true,
+    IncludeToolMessages = true,
+    PreserveToolCallPairs = true,
+    CompressionStrategy = CompressionStrategy.Smart
+});
+~~~
+
+| Strategy | Behavior |
+|---|---|
+| Smart | Drops oldest complete turns until budget and message-count limits fit; preserves order. |
+| Simple | Drops oldest individual messages until limits fit. |
+| None | Applies age/role filtering and pair cleanup, but bypasses budget/count limits. |
+| Semantic | Throws NotSupportedException; semantic summarization is not implemented. |
+
+Both compressors filter message timestamps against current UTC time. Pair preservation removes incomplete tool exchanges after filtering or pruning. Excluding tool messages also removes associated call messages. Preservation does not promise to retain every historical exchange.
+
+TokenEstimator.Estimate includes UTF-8 content bytes, serialized tool calls/results and framing. It is an estimated message budget, not a provider token count. Adapters must also account for declared tool schemas, wire format and output-token reserves. Tool JSON is never truncated.
+
+Limits are nonnegative. Zero budgets/counts can produce empty context. System prompts have no exemption. If the newest complete turn cannot fit, Smart can return an empty list; the orchestrator rejects empty requests before calling the provider. Increase limits for large results or long multi-round turns.
+
+## Tools
+
+~~~csharp
+using Andy.Context.Model;
+using Andy.Context.Tooling;
+
+public sealed class EchoTool : ITool
 {
     public ToolDeclaration Definition { get; } = new()
     {
-        Name = "my_tool",
-        Description = "Does something useful",
-        Parameters = new Dictionary<string, object>
+        Name = "echo",
+        Description = "Echo text",
+        Parameters = new()
         {
             ["type"] = "object",
             ["properties"] = new Dictionary<string, object>
             {
-                ["param"] = new Dictionary<string, object> { ["type"] = "string" }
+                ["text"] = new Dictionary<string, object> { ["type"] = "string" }
             },
-            ["required"] = new[] { "param" }
+            ["required"] = new[] { "text" },
+            ["additionalProperties"] = false
         }
     };
 
-    public async Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
+    public Task<ToolResult> ExecuteAsync(ToolCall call, CancellationToken ct = default)
     {
-        var args = call.ArgumentsAsJsonElement();
-        var param = args.GetProperty("param").GetString();
-        
-        // Do work...
-        var result = new { success = true, value = param };
-        
-        return ToolResult.FromObject(call.Id, Definition.Name, result);
+        ct.ThrowIfCancellationRequested();
+        return Task.FromResult(ToolResult.FromObject(call.Id, call.Name,
+            new { text = call.ArgumentsAsJsonElement().GetProperty("text").GetString() }));
     }
 }
-```
+~~~
 
-### Registering Tools
+Both orchestration modes share validation, unknown-tool and error handling. Tools execute **sequentially in request order**. Caller-managed Task.WhenAll examples do not change that contract. Ordinary tool exceptions become error results; cancellation propagates. Tools must return the matching call ID/name.
 
-```csharp
-var tools = new ToolRegistry();
-tools.Register(new MyTool());
-tools.Register(new AnotherTool());
-```
+OrchestrationOptions.MaxToolRounds defaults to 8. Exceeding it records matching errors for pending calls and throws. LlmConfig forwards provider configuration with every request. Retryable exceptions are reported as tool errors; automatic retries are not implemented.
 
-## Context Management
+The validator implements a [documented JSON Schema subset](docs/tool-validation.md); unsupported keywords fail explicitly.
 
-### Smart Compression
+## LLM adapters and streaming
 
-The framework includes intelligent context compression that:
+Implement ILlmClient in Andy.Context.Llm:
 
-- Preserves tool call/result pairs
-- Maintains conversation structure
-- Respects token budgets
-- Keeps recent messages intact
+~~~csharp
+Task<LlmResponse> CompleteAsync(LlmRequest request, CancellationToken cancellationToken);
+IAsyncEnumerable<LlmStreamResponse> StreamCompleteAsync(LlmRequest request, CancellationToken cancellationToken);
+~~~
 
-```csharp
-var options = new ContextBuildOptions
-{
-    TokenBudget = 4000,
-    MaxRecentMessages = 20,
-    CompressionStrategy = CompressionStrategy.Smart,
-    PreserveToolCallPairs = true
-};
+Adapters translate Andy.Context.Model.Message and tool declarations into provider-specific requests.
 
-var context = contextManager.Build(options);
-```
+~~~csharp
+await foreach (var delta in assistant.RunTurnStreamAsync("hello"))
+    Console.Write(delta.Content);
+~~~
 
-### Compression Strategies
+Content and arguments must be **deltas**, not repeated cumulative snapshots. Every tool fragment must carry the same stable call ID. Supply the complete name on the first fragment; later fragments may omit or repeat that name. Set ArgumentsJson to an empty string when no new arguments arrive. Interleaved calls accumulate by ID.
 
-- **`None`**: No compression
-- **`Simple`**: Basic truncation
-- **`Smart`**: Preserves structure and tool pairs
-- **`Semantic`**: Future: AI-powered compression
+Usage-only chunks are skipped. A non-null Error throws, and a stream without a message throws. Consume the raw ILlmClient stream to access usage. IsComplete is advisory; enumeration ending completes accumulation. Consume the whole iterator to persist a response and execute its tools. Cancellation, provider failure or early disposal can leave a partial turn: completed batches remain, but an interrupted response is neither saved nor rolled back.
 
-## LLM Integration
+## Development and project status
 
-### Implementing ILlmClient
+See [development instructions](docs/development.md), [usage examples](examples/Andy.Context.UsageExamples/README.md), and [the remediation plan](docs/remediation-plan.md).
 
-```csharp
-public class OpenAIClient : ILlmClient
-{
-    public async Task<LlmResponse> ChatAsync(
-        IReadOnlyList<Message> context,
-        IReadOnlyList<ToolDeclaration> declaredTools,
-        CancellationToken ct = default)
-    {
-        // Convert to OpenAI format
-        var messages = ConvertToOpenAIFormat(context);
-        var tools = ConvertToOpenAIFormat(declaredTools);
-        
-        // Call OpenAI API
-        var response = await _client.ChatCompletions.CreateAsync(/* ... */);
-        
-        // Convert back to framework format
-        return ConvertFromOpenAIFormat(response);
-    }
+The September 2026 review fixes are implemented in P1-first order: 166 tests pass and library line coverage is 95.5%. GitHub issues #4–#15 track acceptance and integration. Tests exercise restored data, outgoing requests, multi-round tools, cancellation, fragmented streams, schema rejection and context limits. They use mock providers; live provider interoperability is not certified.
 
-    public async IAsyncEnumerable<Message> ChatStreamAsync(/* ... */)
-    {
-        // Implement streaming
-    }
-}
-```
+Semantic summarization, provider adapters, durable storage and performance benchmarks remain future work. Basic statistics and summaries are available through Andy.Context.Utils.
 
-## Streaming Support
-
-```csharp
-await foreach (var message in orchestrator.RunTurnStreamAsync("Hello!"))
-{
-    Console.Write(message.Content);
-    await Task.Delay(50); // Simulate streaming delay
-}
-```
-
-## Error Handling
-
-The framework provides structured error handling:
-
-```csharp
-try
-{
-    var result = await tool.ExecuteAsync(call, ct);
-}
-catch (ToolExecutionException ex)
-{
-    // Structured tool execution error
-    Console.WriteLine($"Tool {ex.ToolName} failed: {ex.Message}");
-}
-catch (RetryableToolException ex)
-{
-    // Retryable error with delay
-    await Task.Delay(ex.RetryDelay);
-    // Retry logic...
-}
-```
-
-## Examples
-
-See the `examples/` directory for:
-
-- **`DemoProgram.cs`**: Complete working example
-- **`DemoLlmClient.cs`**: Mock LLM for testing
-- **`CalculatorTool.cs`**: Example tool implementation
-
-## Testing
-
-```bash
-dotnet test
-```
-
-The framework includes comprehensive tests for:
-
-- Message model functionality
-- Tool execution and validation
-- Context compression
-- Orchestration flow
-- Error handling
-
-## Performance
-
-- **Caching**: Conversation messages are cached for performance
-- **Lazy Evaluation**: Context compression uses lazy evaluation
-- **Memory Efficient**: Streaming support for large responses
-- **Token Budgeting**: Smart token management
-
-## License
-
-MIT License - see LICENSE file for details.
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
-
-## Roadmap
-
-- [ ] Semantic context compression
-- [ ] Conversation persistence
-- [ ] Advanced tool validation
-- [ ] Multi-modal support
-- [ ] Conversation analytics
-- [ ] Performance monitoring
+Repository license: Apache-2.0 — see [LICENSE](LICENSE). Existing file-level notices are preserved.

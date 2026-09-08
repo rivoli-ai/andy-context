@@ -86,9 +86,8 @@ public class ConversationHelpersTests
         // Assert
         Assert.NotNull(json);
         Assert.NotNull(deserialized);
-        // Note: Private readonly fields may not deserialize properly
-        // At minimum, the ID should be preserved
-        Assert.NotNull(deserialized.Id);
+        Assert.Equal(conversation.Id, deserialized.Id);
+        Assert.Equal("Test message", Assert.Single(deserialized.Turns).UserOrSystemMessage.Content);
     }
 
     [Fact]
@@ -306,6 +305,140 @@ public class ConversationHelpersTests
         {
             Assert.True(properties.ContainsKey("expression"));
         }
+    }
+
+    [Fact]
+    public void Conversation_FluentPattern_ShouldManageMessages()
+    {
+        // This test demonstrates a fluent pattern for managing conversations
+        // Similar to the ConversationContext example but using our architecture
+
+        // Arrange
+        var conversation = new Conversation();
+        var registry = new ToolRegistry();
+
+        // Act - Build conversation fluently
+        // System instruction
+        conversation.AddTurn(new Turn
+        {
+            UserOrSystemMessage = new Message { Role = Role.System, Content = "You are a helpful assistant." }
+        });
+
+        // User: Hello!
+        conversation.AddTurn(new Turn
+        {
+            UserOrSystemMessage = new Message { Role = Role.User, Content = "Hello!" },
+            AssistantMessage = new Message { Role = Role.Assistant, Content = "Hi there! How can I help you?" }
+        });
+
+        // User: What's 2+2?
+        conversation.AddTurn(new Turn
+        {
+            UserOrSystemMessage = new Message { Role = Role.User, Content = "What's 2+2?" },
+            AssistantMessage = new Message { Role = Role.Assistant, Content = "2+2 equals 4." }
+        });
+
+        // Assert
+        var messages = conversation.GetCachedMessages();
+        Assert.Equal(5, messages.Count); // System + 2 User + 2 Assistant
+        Assert.Equal(Role.System, messages[0].Role);
+        Assert.Equal(Role.User, messages[1].Role);
+        Assert.Equal(Role.Assistant, messages[2].Role);
+        Assert.Equal(Role.User, messages[3].Role);
+        Assert.Equal(Role.Assistant, messages[4].Role);
+
+        // Verify content
+        Assert.Equal("You are a helpful assistant.", messages[0].Content);
+        Assert.Equal("Hello!", messages[1].Content);
+        Assert.Equal("Hi there! How can I help you?", messages[2].Content);
+        Assert.Equal("What's 2+2?", messages[3].Content);
+        Assert.Equal("2+2 equals 4.", messages[4].Content);
+    }
+
+    [Fact]
+    public void FunctionCalling_EndToEnd_ShouldWork()
+    {
+        // This test demonstrates end-to-end function calling
+        // Similar to the FunctionCalling_ShouldWork example but using our architecture
+
+        // Arrange
+        var conversation = new Conversation();
+        var registry = new ToolRegistry();
+
+        // Register a weather tool (using ToolDeclaration)
+        var weatherDeclaration = new ToolDeclaration
+        {
+            Name = "get_weather",
+            Description = "Get the weather for a location",
+            Parameters = new Dictionary<string, object>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object>
+                {
+                    ["location"] = new Dictionary<string, object>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "The city and state"
+                    }
+                },
+                ["required"] = new[] { "location" }
+            }
+        };
+
+        // Act - Simulate conversation with tool call
+        var turn = new Turn
+        {
+            UserOrSystemMessage = new Message { Role = Role.User, Content = "What's the weather in New York?" },
+            AssistantMessage = new Message
+            {
+                Role = Role.Assistant,
+                Content = "", // Assistant might not include text when calling tools
+                ToolCalls = new List<ToolCall>
+                {
+                    new ToolCall
+                    {
+                        Id = "call_123",
+                        Name = "get_weather",
+                        ArgumentsJson = JsonSerializer.Serialize(new { location = "New York, NY" })
+                    }
+                }
+            }
+        };
+
+        // Add tool response
+        var weatherData = new { temperature = 72, condition = "sunny" };
+        turn.ToolMessages.Add(new Message
+        {
+            Role = Role.Tool,
+            Content = JsonSerializer.Serialize(weatherData),
+            ToolResults = new List<ToolResult>
+            {
+                ToolResult.FromObject("call_123", "get_weather", weatherData)
+            }
+        });
+
+        conversation.AddTurn(turn);
+
+        // Assert
+        var messages = conversation.GetCachedMessages();
+        Assert.Equal(3, messages.Count); // User + Assistant with tool call + Tool response
+
+        // Check the assistant message with tool call
+        var assistantMsg = messages[1];
+        Assert.Equal(Role.Assistant, assistantMsg.Role);
+        Assert.Single(assistantMsg.ToolCalls);
+        Assert.Equal("get_weather", assistantMsg.ToolCalls[0].Name);
+        Assert.Equal("call_123", assistantMsg.ToolCalls[0].Id);
+        Assert.Contains("New York, NY", assistantMsg.ToolCalls[0].ArgumentsJson);
+
+        // Check the tool response
+        var toolMsg = messages[2];
+        Assert.Equal(Role.Tool, toolMsg.Role);
+        Assert.Single(toolMsg.ToolResults);
+        Assert.Equal("get_weather", toolMsg.ToolResults[0].Name);
+        Assert.Equal("call_123", toolMsg.ToolResults[0].CallId);
+        Assert.Contains("72", toolMsg.ToolResults[0].ResultJson);
+        Assert.Contains("sunny", toolMsg.ToolResults[0].ResultJson);
     }
 
     [Fact]

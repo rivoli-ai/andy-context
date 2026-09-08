@@ -43,7 +43,8 @@ public class ToolCallingTests
         };
 
         // Act
-        var response = await llm.ChatAsync(messages, tools);
+        var request = new LlmRequest { Messages = messages, Tools = tools };
+        var response = await llm.CompleteAsync(request);
 
         // Assert
         Assert.NotNull(response);
@@ -405,7 +406,7 @@ public class ToolCallingTests
     }
 
     [Fact]
-    public async Task ParallelToolCalls_ShouldBeSupported()
+    public async Task CallerManagedParallelResults_PreserveCallIds()
     {
         // Arrange
         var conversation = new Conversation();
@@ -527,9 +528,8 @@ public class ToolCallingTests
         var hasToolCall = context.Any(m => m.ToolCalls.Any(tc => tc.Id == "calc_1"));
         var hasToolResult = context.Any(m => m.ToolResults.Any(tr => tr.CallId == "calc_1"));
 
-        if (hasToolCall)
-        {
-            Assert.True(hasToolResult, "If tool call is preserved, its result should also be preserved");
-        }
+        Assert.Equal(hasToolCall, hasToolResult);
+        Assert.True(context.Sum(TokenEstimator.Estimate) <= options.TokenBudget);
+        Assert.Equal("Message 9", context.Last().Content);
     }
 }

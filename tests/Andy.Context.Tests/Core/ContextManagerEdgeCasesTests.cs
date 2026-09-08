@@ -164,7 +164,7 @@ public class ContextManagerEdgeCasesTests
 
         var options = new ContextBuildOptions
         {
-            TokenBudget = 20, // Small budget
+            TokenBudget = 200, // Enough for the complete structured tool exchange
             PreserveToolCallPairs = true
         };
 
@@ -247,7 +247,7 @@ public class ContextManagerEdgeCasesTests
 
         var options = new ContextBuildOptions
         {
-            TokenBudget = 4 // Exactly enough for both messages
+            TokenBudget = 12 // Content plus four framing units per message
         };
 
         // Act
@@ -260,15 +260,19 @@ public class ContextManagerEdgeCasesTests
     [Fact]
     public void ContextBuildOptions_WithMaxConversationAge_ShouldBeRespected()
     {
-        // This test documents expected behavior - actual age filtering would need to be implemented
-        // Arrange
-        var options = new ContextBuildOptions
+        var conversation = new Conversation();
+        conversation.AddTurn(new Turn
         {
-            MaxConversationAge = TimeSpan.FromHours(1)
-        };
-
-        // Assert
-        Assert.Equal(TimeSpan.FromHours(1), options.MaxConversationAge);
+            UserOrSystemMessage = new Message
+            {
+                Role = Role.User,
+                Content = "expired",
+                Timestamp = DateTimeOffset.UtcNow.AddHours(-2)
+            }
+        });
+        conversation.AddTurn(new Turn { UserOrSystemMessage = new Message { Role = Role.User, Content = "current" } });
+        var actual = new ContextManager(conversation).Build(new() { MaxConversationAge = TimeSpan.FromHours(1) });
+        Assert.Equal("current", Assert.Single(actual).Content);
     }
 
     [Fact]

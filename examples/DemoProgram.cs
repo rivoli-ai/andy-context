@@ -1,4 +1,8 @@
-using Andy.Context.Core;
+using Andy.Context.Model;
+using Andy.Context.Context;
+using Andy.Context.Tooling;
+using Andy.Context.Orchestration;
+using Andy.Context.Utils;
 using Andy.Context.Examples;
 using System;
 using System.Collections.Generic;
@@ -27,17 +31,17 @@ public static class DemoProgram
         // 3. Add system prompt
         conversation.AddTurn(new Turn
         {
-            UserOrSystemMessage = new ChatMessage 
-            { 
-                Role = Role.System, 
-                Content = "You are a helpful assistant that can perform calculations." 
+            UserOrSystemMessage = new Message
+            {
+                Role = Role.System,
+                Content = "You are a helpful assistant that can perform calculations."
             }
         });
 
         // 4. Configure context options
-        var options = new ContextBuildOptions 
-        { 
-            TokenBudget = 1200, 
+        var options = new ContextBuildOptions
+        {
+            TokenBudget = 1200,
             MaxRecentMessages = 32,
             CompressionStrategy = CompressionStrategy.Smart
         };
@@ -74,15 +78,10 @@ public static class DemoProgram
     private static async Task RunTurn(AssistantOrchestrator orchestrator, string userInput, ContextBuildOptions options)
     {
         Console.WriteLine($"User: {userInput}");
-        
+
         var response = await orchestrator.RunTurnAsync(userInput, options);
         Console.WriteLine($"Assistant: {response.Content}");
-        
-        if (response.ToolCalls.Any())
-        {
-            Console.WriteLine($"  → Made {response.ToolCalls.Count} tool call(s)");
-        }
-        
+
         Console.WriteLine();
     }
 
@@ -90,13 +89,13 @@ public static class DemoProgram
     {
         Console.WriteLine($"User: {userInput}");
         Console.Write("Assistant: ");
-        
+
         await foreach (var message in orchestrator.RunTurnStreamAsync(userInput, options))
         {
             Console.Write(message.Content);
             await Task.Delay(50); // Simulate streaming delay
         }
-        
+
         Console.WriteLine("\n");
     }
 }

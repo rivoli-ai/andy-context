@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -8,13 +8,9 @@
     <Title>Andy Context</Title>
     <Description>Andy.Context — LLM-agnostic conversation framework for AI assistants.</Description>
     <PackageIcon>andy_context_icon.png</PackageIcon>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PackageTags>ai;llm;conversation;context;tools</PackageTags>
-    <RepositoryUrl>https://github.com/your-org/andy-context</RepositoryUrl>
+    <RepositoryUrl>https://github.com/rivoli-ai/andy-context</RepositoryUrl>
   </PropertyGroup>
-
-  <ItemGroup>
-    <None Include="../../assets/andy_context_icon.png" Pack="true" PackagePath="/" Visible="false" Condition="Exists('../../assets/andy_context_icon.png')" />
-  </ItemGroup>
 
 </Project>
